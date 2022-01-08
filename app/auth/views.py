@@ -16,8 +16,8 @@ def before_request():
             and request.endpoint \
             and request.blueprint != 'auth' \
             and request.endpoint != 'static':
+        current_user.ping()
         return redirect(url_for('auth.unconfirmed'))
-
 
 @auth.route('/unconfirmed')
 def unconfirmed():
