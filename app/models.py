@@ -57,13 +57,13 @@ class User(UserMixin, db.Model):
         super(User,self).__init__(**kwargs)
         if self.role is None:
             if self.email == current_app.config['FLASKY_ADMIN']:
-                self.role = Role.query.filter_by(permissions=0xff).first()
+                self.role = Role.query.filter_by(name='Administrator').first()
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
 
     def ping(self):
         self.last_seen = datetime.utcnow()
-        db.session.add(self) 
+        db.session.add(self)
 
     def can(self,permissions):
         return self.role is not None and \
