@@ -21,23 +21,35 @@ class Role(db.Model):
     @staticmethod
     def inset_role():
         roles = {
-        'User': (Permission.FOLLOW|
-                Permission.COMMENT|
-                Permission.WRITE_ARTICLES, True),
-        'Moderator': (Permission.FOLLOW|
-                    Permission.COMMENT|
-                    Permission.WRITE_ARTICLES|
-                    Permission.MODERATE_COMMENTS, False),
-        'Administrator' : (0xff, False)
+           'User': [Permission.FOLLOW, Permission.COMMENT, Permission.WRITE],
+           'Moderator': [Permission.FOLLOW, Permission.COMMENT,
+                          Permission.WRITE, Permission.MODERATE],
+           'Administrator': [Permission.FOLLOW, Permission.COMMENT,
+                              Permission.WRITE, Permission.MODERATE,
+                              Permission.ADMIN],
         }
+        default_role = 'User'
         for r in roles:
-            role = Role.query.filter_by(name = r).first()
+            role = Role.query.filter_by(name=r).first()
             if role is None:
-                role = Role(name = r)
-            role.permissions = roles[r][0]
-            role.default = roles[r][1]
+                role = Role(name=r)
+            role.reset_permissions()
+            for perm in roles[r]:
+                role.add_permission(perm)
+            role.default = (role.name == default_role)
             db.session.add(role)
         db.session.commit()
+
+    def add_permission(self, perm):
+        if not self.has_permission(perm):
+            self.permissions += perm
+
+    def remove_permission(self, perm):
+        if self.has_permission(perm):
+            self.permissions -= perm
+
+    def reset_permissions(self):
+        self.permissions = 0
 
     def has_permission(self, perm):
         return self.permissions & perm == perm    
@@ -57,7 +69,7 @@ class User(UserMixin, db.Model):
     member_since = db.Column(db.DateTime(),default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     avatar_hash = db.Column(db.String(32))
-    post = db.relationship('Post',backref='author',lazy='dynamic')
+    posts = db.relationship('Post',backref='author',lazy='dynamic')
 
 
     def __init__(self, **kwargs):
@@ -78,7 +90,7 @@ class User(UserMixin, db.Model):
         return self.role is not None and self.role.has_permission(permissions)
 
     def is_administrator(self):
-        return self.can(Permission.ADMINISTER)
+        return self.can(Permission.ADMIN)
     
     @property
     def password(self):
@@ -181,8 +193,8 @@ class Post(db.Model):
     author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
 
 class Permission:
-    FOLLOW = 0x01
-    COMMENT = 0x02
-    WRITE_ARTICLES = 0x03
-    MODERATE_COMMENTS = 0x04
-    ADMINISTER = 0X80
+    FOLLOW = 1
+    COMMENT = 2
+    WRITE = 4
+    MODERATE = 8
+    ADMIN = 16
